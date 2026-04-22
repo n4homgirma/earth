@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import Scene from './scenes/Scene'
 import './index.css'
 
@@ -11,7 +12,12 @@ function App() {
     return () => scene.dispose()
   }, [])
 
-  return <canvas ref={canvasRef} />
+  return (
+    <>
+      <canvas ref={canvasRef} />
+      <Analytics />
+    </>
+  )
 }
 
 export default App
