@@ -15,7 +15,7 @@ function App() {
     return () => scene.dispose()
   }, [])
 
-  const handleIntroComplete = () => {
+  const handleLightClick = () => {
     setIntroFading(true)
     setTimeout(() => setIntroVisible(false), 1000)
   }
@@ -32,7 +32,7 @@ function App() {
             inset: 0,
           }}
         >
-          <IntroScreen onComplete={handleIntroComplete} />
+          <IntroScreen onLightClick={handleLightClick} />
         </div>
       )}
       <Analytics />

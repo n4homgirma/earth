@@ -6,68 +6,47 @@
   z-index: 100;
 }
 
-.intro-stars {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* dissolves text into the void as it recedes toward the horizon */
+/* Dissolves text into the void as it recedes toward the horizon */
 .intro-fade-top {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 40%;
-  background: linear-gradient(to bottom, #000 20%, transparent 100%);
+  height: 38%;
+  background: linear-gradient(to bottom, #000 22%, transparent 100%);
   z-index: 3;
   pointer-events: none;
 }
 
-/* subtle vignette at bottom so text appears to emerge from darkness */
-.intro-fade-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 15%;
-  background: linear-gradient(to top, #000, transparent);
-  z-index: 3;
-  pointer-events: none;
-}
-
-/* 3-D viewing frustum — vanishing point near the top-centre */
+/* 3D perspective frustum — vanishing point near the top-centre */
 .intro-scene {
   position: absolute;
   inset: 0;
-  perspective: 350px;
-  perspective-origin: 50% 12%;
+  perspective: 280px;
+  perspective-origin: 50% 8%;
   overflow: hidden;
   z-index: 2;
 }
 
-/* The tilted text surface */
+/* Tilted text surface — top recedes into distance, bottom is close */
 .intro-crawl {
   position: absolute;
-  top: 100%;          /* start just below the viewport */
+  /* top is driven by JS scroll position */
   left: 12%;
   right: 12%;
 
   color: #ffe566;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(0.95rem, 2.2vw, 1.75rem);
+  font-size: clamp(1rem, 2.3vw, 1.8rem);
   font-weight: bold;
   text-align: justify;
   line-height: 2.1;
-  letter-spacing: 0.06em;
-  word-spacing: 0.15em;
+  letter-spacing: 0.05em;
+  word-spacing: 0.12em;
 
-  /* tilt the plane back so the top appears far away */
+  /* Tilt the plane — top goes into the distance */
   transform: rotateX(25deg);
   transform-origin: 50% 0%;
-
-  animation: introCrawl 26s linear forwards;
 }
 
 .intro-crawl p {
@@ -75,34 +54,49 @@
 }
 
 .intro-reference {
-  margin-top: 0.5em !important;
+  margin-top: -0.2em !important;
   text-align: center;
   font-style: italic;
   color: #ffd060;
   letter-spacing: 0.12em;
 }
 
-@keyframes introCrawl {
-  0%   { top: 100%; }
-  100% { top: -520%; }
+.intro-separator {
+  border: none;
+  border-top: 1px solid rgba(255, 230, 100, 0.18);
+  margin: 2.5em 15% 3em;
 }
 
-.intro-skip {
-  position: absolute;
-  bottom: 1.8rem;
-  right: 2rem;
-  z-index: 10;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: rgba(255, 255, 255, 0.5);
-  padding: 0.35rem 1rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
+/* ── "light" glowing word ── */
+.light-word {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  color: #ffffff;
+  text-shadow:
+    0 0 6px  #fff,
+    0 0 14px #ffe566,
+    0 0 30px #ffaa00,
+    0 0 60px #ff8000;
+  animation: lightPulse 2.6s ease-in-out infinite;
 }
 
-.intro-skip:hover {
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.8);
+.light-word:hover {
+  text-shadow:
+    0 0 10px #fff,
+    0 0 24px #ffe566,
+    0 0 50px #ffaa00,
+    0 0 100px #ff6000;
+}
+
+@keyframes lightPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
 }

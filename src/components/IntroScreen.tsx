@@ -2,54 +2,77 @@ import { useEffect, useRef } from 'react'
 import './IntroScreen.css'
 
 interface Props {
-  onComplete: () => void
+  onLightClick: () => void
 }
 
-export default function IntroScreen({ onComplete }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+export default function IntroScreen({ onLightClick }: Props) {
+  const crawlRef = useRef<HTMLDivElement>(null)
+  const targetY = useRef(0)
+  const posY = useRef(0)
+  const animRef = useRef(0)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const el = crawlRef.current
+    if (!el) return
 
-    const draw = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let i = 0; i < 280; i++) {
-        const x = Math.random() * canvas.width
-        const y = Math.random() * canvas.height
-        const r = Math.random() * 1.2 + 0.1
-        const a = Math.random() * 0.75 + 0.25
-        ctx.fillStyle = `rgba(255,255,255,${a})`
-        ctx.beginPath()
-        ctx.arc(x, y, r, 0, Math.PI * 2)
-        ctx.fill()
-      }
+    // Position element just below the viewport to start
+    el.style.top = `${window.innerHeight}px`
+
+    const maxScroll = el.scrollHeight + window.innerHeight * 1.5
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120)
+      targetY.current = Math.max(0, Math.min(maxScroll, targetY.current + delta))
     }
 
-    draw()
-    window.addEventListener('resize', draw)
-    return () => window.removeEventListener('resize', draw)
-  }, [])
+    const onKey = (e: KeyboardEvent) => {
+      const keys = ['ArrowDown', 'ArrowUp', ' ', 'PageDown', 'PageUp']
+      if (!keys.includes(e.key)) return
+      e.preventDefault()
+      const large = [' ', 'PageDown', 'PageUp'].includes(e.key)
+      const dir = ['ArrowDown', ' ', 'PageDown'].includes(e.key) ? 1 : -1
+      const step = large ? window.innerHeight * 0.6 : 60
+      targetY.current = Math.max(0, Math.min(maxScroll, targetY.current + step * dir))
+    }
 
-  useEffect(() => {
-    const t = setTimeout(onComplete, 26000)
-    return () => clearTimeout(t)
-  }, [onComplete])
+    let touchPrev = 0
+    const onTouchStart = (e: TouchEvent) => { touchPrev = e.touches[0].clientY }
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      const dy = (touchPrev - e.touches[0].clientY) * 2
+      touchPrev = e.touches[0].clientY
+      targetY.current = Math.max(0, Math.min(maxScroll, targetY.current + dy))
+    }
+
+    const tick = () => {
+      // smooth lerp toward target
+      posY.current += (targetY.current - posY.current) * 0.07
+      el.style.top = `${window.innerHeight - posY.current}px`
+      animRef.current = requestAnimationFrame(tick)
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    animRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      cancelAnimationFrame(animRef.current)
+    }
+  }, [])
 
   return (
     <div className="intro">
-      <canvas ref={canvasRef} className="intro-stars" />
-
-      {/* gradient mask so text fades into the void at the top */}
       <div className="intro-fade-top" />
-      <div className="intro-fade-bottom" />
 
       <div className="intro-scene">
-        <div className="intro-crawl">
+        <div className="intro-crawl" ref={crawlRef}>
           <p>
             In the beginning God created the heavens and the earth.
           </p>
@@ -59,12 +82,17 @@ export default function IntroScreen({ onComplete }: Props) {
             hovering over the waters.
           </p>
           <p className="intro-reference">Genesis 1:1–2</p>
+
+          <div className="intro-separator" />
+
+          <p>
+            And God said, &ldquo;Let there be{' '}
+            <button className="light-word" onClick={onLightClick}>light</button>
+            ,&rdquo; and there was{' '}
+            <button className="light-word" onClick={onLightClick}>light</button>.
+          </p>
         </div>
       </div>
-
-      <button className="intro-skip" onClick={onComplete}>
-        Skip
-      </button>
     </div>
   )
 }
