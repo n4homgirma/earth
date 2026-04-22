@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './IntroScreen.css'
 
 interface Props {
@@ -10,18 +10,27 @@ export default function IntroScreen({ onLightClick }: Props) {
   const targetY = useRef(0)
   const posY = useRef(0)
   const animRef = useRef(0)
+  const hintDone = useRef(false)
+  const [hintOut, setHintOut] = useState(false)
 
   useEffect(() => {
     const el = crawlRef.current
     if (!el) return
 
-    // Position element just below the viewport to start
     el.style.top = `${window.innerHeight}px`
 
     const maxScroll = el.scrollHeight + window.innerHeight * 1.5
 
+    const dismissHint = () => {
+      if (!hintDone.current) {
+        hintDone.current = true
+        setHintOut(true)
+      }
+    }
+
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      dismissHint()
       const delta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY), 120)
       targetY.current = Math.max(0, Math.min(maxScroll, targetY.current + delta))
     }
@@ -30,6 +39,7 @@ export default function IntroScreen({ onLightClick }: Props) {
       const keys = ['ArrowDown', 'ArrowUp', ' ', 'PageDown', 'PageUp']
       if (!keys.includes(e.key)) return
       e.preventDefault()
+      dismissHint()
       const large = [' ', 'PageDown', 'PageUp'].includes(e.key)
       const dir = ['ArrowDown', ' ', 'PageDown'].includes(e.key) ? 1 : -1
       const step = large ? window.innerHeight * 0.6 : 60
@@ -40,15 +50,22 @@ export default function IntroScreen({ onLightClick }: Props) {
     const onTouchStart = (e: TouchEvent) => { touchPrev = e.touches[0].clientY }
     const onTouchMove = (e: TouchEvent) => {
       e.preventDefault()
+      dismissHint()
       const dy = (touchPrev - e.touches[0].clientY) * 2
       touchPrev = e.touches[0].clientY
       targetY.current = Math.max(0, Math.min(maxScroll, targetY.current + dy))
     }
 
     const tick = () => {
-      // smooth lerp toward target
       posY.current += (targetY.current - posY.current) * 0.07
+
+      // Scale shrinks as text recedes — drives the depth illusion
+      const progress = Math.min(posY.current / maxScroll, 1)
+      const scale = Math.max(0.08, 1 - progress * 0.92)
+
       el.style.top = `${window.innerHeight - posY.current}px`
+      el.style.transform = `rotateX(25deg) scale(${scale.toFixed(4)})`
+
       animRef.current = requestAnimationFrame(tick)
     }
 
@@ -92,6 +109,11 @@ export default function IntroScreen({ onLightClick }: Props) {
             <button className="light-word" onClick={onLightClick}>light</button>.
           </p>
         </div>
+      </div>
+
+      <div className={`scroll-hint${hintOut ? ' scroll-hint--out' : ''}`}>
+        <span className="scroll-hint-label">scroll</span>
+        <span className="scroll-hint-chevron" />
       </div>
     </div>
   )
