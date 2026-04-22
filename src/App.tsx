@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import Scene from './scenes/Scene'
 import IntroScreen from './components/IntroScreen'
 import LightBurst from './components/LightBurst'
@@ -43,6 +44,7 @@ function App() {
         <LightBurst origin={burstOrigin} />
       )}
       <Analytics />
+      <SpeedInsights />
     </>
   )
 }
