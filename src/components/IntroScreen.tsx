@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './IntroScreen.css'
 
 interface Props {
-  onLightClick: () => void
+  onLightClick: (origin: { x: number; y: number }) => void
 }
 
 export default function IntroScreen({ onLightClick }: Props) {
@@ -104,9 +104,9 @@ export default function IntroScreen({ onLightClick }: Props) {
 
           <p>
             And God said, &ldquo;Let there be{' '}
-            <button className="light-word" onClick={onLightClick}>light</button>
+            <button className="light-word" onClick={(e) => onLightClick({ x: e.clientX, y: e.clientY })}>light</button>
             ,&rdquo; and there was{' '}
-            <button className="light-word" onClick={onLightClick}>light</button>.
+            <button className="light-word" onClick={(e) => onLightClick({ x: e.clientX, y: e.clientY })}>light</button>.
           </p>
         </div>
       </div>

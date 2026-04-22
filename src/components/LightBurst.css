@@ -1,0 +1,42 @@
+.burst-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.burst-circle {
+  position: absolute;
+  /* 140px gives scale(70) room to reach all screen corners */
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    #ffffff   0%,
+    #fffef0  20%,
+    #fff9c4  45%,
+    #ffe566  70%,
+    #ffaa00  100%
+  );
+  transform: translate(-50%, -50%) scale(0);
+
+  /*
+   * Two chained animations on different properties — no conflict:
+   *  1. burstExpand  : 0 → 0.8 s  — scale 0 to 70 (fills screen)
+   *  2. burstFade    : 2.8 → 4 s  — opacity 1 to 0 (reveals sphere)
+   */
+  animation:
+    burstExpand 0.8s cubic-bezier(0.15, 0, 0.25, 1) forwards,
+    burstFade   1.2s 2.8s ease forwards;
+}
+
+@keyframes burstExpand {
+  0%   { transform: translate(-50%, -50%) scale(0); }
+  100% { transform: translate(-50%, -50%) scale(70); }
+}
+
+@keyframes burstFade {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
