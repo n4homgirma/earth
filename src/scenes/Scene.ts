@@ -1,18 +1,19 @@
 import * as THREE from 'three'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 export default class Scene {
   private renderer: THREE.WebGLRenderer
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
-  private mesh: THREE.Mesh
+  private model: THREE.Group   // pivot that receives scroll-driven rotation
   private rafId = 0
   private scrollEnabled = false
 
-  // Smooth rotation (horizontal scroll)
+  // Smooth rotation (horizontal scroll → Y axis)
   private targetRotY = 0
   private rotY = 0
 
-  // Smooth zoom (vertical scroll)
+  // Smooth zoom (vertical scroll → camera Z)
   private targetCamZ = 3
   private camZ = 3
 
@@ -24,27 +25,49 @@ export default class Scene {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(window.innerWidth, window.innerHeight)
+    // Correct colour space + filmic tone-mapping for GLB PBR materials
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.0
 
     this.scene = new THREE.Scene()
 
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100)
     this.camera.position.z = 3
 
-    const geometry = new THREE.SphereGeometry(1, 64, 64)
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x2266cc,
-      emissive: 0x0a1230,
-      shininess: 80,
-      specular: 0x4488cc,
-    })
-    this.mesh = new THREE.Mesh(geometry, material)
-    this.scene.add(this.mesh)
+    // Empty pivot added immediately; model is inserted once loaded
+    this.model = new THREE.Group()
+    this.scene.add(this.model)
 
-    // Low ambient so the dark side stays dark; strong directional for drama
-    const ambient = new THREE.AmbientLight(0xffffff, 0.25)
-    const sun = new THREE.DirectionalLight(0xffffff, 1.8)
+    const loader = new GLTFLoader()
+    loader.load(
+      '/models/toy_paper_globe.glb.glb',
+      (gltf) => {
+        // Normalise: centre and scale to fit within a 2-unit diameter
+        const box = new THREE.Box3().setFromObject(gltf.scene)
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const scale = 2 / maxDim
+
+        gltf.scene.scale.setScalar(scale)
+        gltf.scene.position.set(
+          -center.x * scale,
+          -center.y * scale,
+          -center.z * scale,
+        )
+
+        this.model.add(gltf.scene)
+      },
+      undefined,
+      (err) => console.error('Failed to load GLB model:', err),
+    )
+
+    // Lighting tuned for PBR GLB materials
+    const ambient = new THREE.AmbientLight(0xffffff, 1.2)
+    const sun = new THREE.DirectionalLight(0xffffff, 2.5)
     sun.position.set(5, 3, 5)
-    const fill = new THREE.DirectionalLight(0x334499, 0.3)
+    const fill = new THREE.DirectionalLight(0xaabbff, 0.6)
     fill.position.set(-5, -2, -5)
     this.scene.add(ambient, sun, fill)
 
@@ -56,7 +79,7 @@ export default class Scene {
     this.animate()
   }
 
-  /** Called once the burst has faded and the sphere is fully revealed */
+  /** Unlock scroll interaction once the burst has fully faded */
   enableScroll() {
     this.scrollEnabled = true
   }
@@ -90,7 +113,7 @@ export default class Scene {
     this.rafId = requestAnimationFrame(this.animate)
 
     this.rotY += (this.targetRotY - this.rotY) * 0.05
-    this.mesh.rotation.y = this.rotY
+    this.model.rotation.y = this.rotY
 
     this.camZ += (this.targetCamZ - this.camZ) * 0.05
     this.camera.position.z = this.camZ
