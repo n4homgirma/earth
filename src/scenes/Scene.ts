@@ -10,10 +10,22 @@ export default class Scene {
   private rafId = 0
   private scrollEnabled = false
 
+  // Rotation (horizontal scroll)
   private targetRotY = 0
   private rotY = 0
+
+  // Zoom (vertical scroll, fallback when the model has no animations)
   private targetCamZ = 3
   private camZ = 3
+
+  // Animation scrubbing (vertical scroll, when the GLB has animation clips)
+  private mixer: THREE.AnimationMixer | null = null
+  private actions: THREE.AnimationAction[] = []
+  private animDuration = 0
+  private targetAnimT = 0  // 0 → 1 along the timeline
+  private animT = 0
+
+  // Touch tracking
   private touchX = 0
   private touchY = 0
 
@@ -27,8 +39,6 @@ export default class Scene {
 
     this.scene = new THREE.Scene()
 
-    // IBL environment — essential for PBR GLB materials to render correctly.
-    // Without this, metallic/glossy surfaces appear pitch black.
     const pmrem = new THREE.PMREMGenerator(this.renderer)
     pmrem.compileEquirectangularShader()
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
@@ -37,11 +47,9 @@ export default class Scene {
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100)
     this.camera.position.z = 3
 
-    // Pivot group — receives scroll-driven rotation
     this.model = new THREE.Group()
     this.scene.add(this.model)
 
-    // Fallback sphere shown until the GLB loads (or if it fails)
     const fallback = new THREE.Mesh(
       new THREE.SphereGeometry(1, 64, 64),
       new THREE.MeshStandardMaterial({ color: 0x2266cc, roughness: 0.4, metalness: 0.3 }),
@@ -52,7 +60,6 @@ export default class Scene {
     loader.load(
       '/models/toy_paper_globe.glb.glb',
       (gltf) => {
-        // Remove fallback once the real model is ready
         this.model.remove(fallback)
 
         const box = new THREE.Box3().setFromObject(gltf.scene)
@@ -69,13 +76,28 @@ export default class Scene {
         )
 
         this.model.add(gltf.scene)
-        console.log('GLB loaded ✓', gltf.scene)
+
+        // If the GLB ships with animation clips, set up a mixer and
+        // prepare each action in paused state so we can scrub them by scroll.
+        if (gltf.animations.length > 0) {
+          this.mixer = new THREE.AnimationMixer(gltf.scene)
+          this.animDuration = 0
+          gltf.animations.forEach((clip) => {
+            const action = this.mixer!.clipAction(clip)
+            action.play()
+            action.paused = true
+            this.actions.push(action)
+            if (clip.duration > this.animDuration) this.animDuration = clip.duration
+          })
+          console.log(`GLB loaded with ${gltf.animations.length} animation(s), duration ${this.animDuration.toFixed(2)}s`)
+        } else {
+          console.log('GLB loaded (no embedded animations)')
+        }
       },
       undefined,
       (err) => console.error('GLB load failed:', err),
     )
 
-    // Directional lights complement the IBL for strong highlights and shadows
     const key = new THREE.DirectionalLight(0xffffff, 2.0)
     key.position.set(5, 3, 5)
     const fill = new THREE.DirectionalLight(0xaabbff, 0.5)
@@ -95,12 +117,21 @@ export default class Scene {
     this.scrollEnabled = true
   }
 
+  private applyVerticalDelta(dy: number) {
+    if (this.mixer) {
+      // Scrub the animation timeline — full scroll through covers the full clip
+      this.targetAnimT = Math.max(0, Math.min(1, this.targetAnimT + dy * 0.001))
+    } else {
+      this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ + dy * 0.004))
+    }
+  }
+
   private onWheel = (e: WheelEvent) => {
     if (!this.scrollEnabled) return
     e.preventDefault()
     const px = e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 400 : 1
     this.targetRotY += e.deltaX * px * 0.004
-    this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ + e.deltaY * px * 0.004))
+    this.applyVerticalDelta(e.deltaY * px)
   }
 
   private onTouchStart = (e: TouchEvent) => {
@@ -117,7 +148,8 @@ export default class Scene {
     this.touchX = e.touches[0].clientX
     this.touchY = e.touches[0].clientY
     this.targetRotY -= dx * 0.008
-    this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ - dy * 0.008))
+    // Touch gesture down = scroll forward (positive dy)
+    this.applyVerticalDelta(-dy * 2)
   }
 
   private animate = () => {
@@ -126,8 +158,17 @@ export default class Scene {
     this.rotY += (this.targetRotY - this.rotY) * 0.05
     this.model.rotation.y = this.rotY
 
-    this.camZ += (this.targetCamZ - this.camZ) * 0.05
-    this.camera.position.z = this.camZ
+    if (this.mixer) {
+      // Scrub each action's time independently — clips may have different durations
+      this.animT += (this.targetAnimT - this.animT) * 0.08
+      this.actions.forEach((action) => {
+        action.time = this.animT * action.getClip().duration
+      })
+      this.mixer.update(0)   // apply the new times without advancing
+    } else {
+      this.camZ += (this.targetCamZ - this.camZ) * 0.05
+      this.camera.position.z = this.camZ
+    }
 
     this.renderer.render(this.scene, this.camera)
   }
