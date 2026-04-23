@@ -58,7 +58,7 @@ export default class Scene {
 
     const loader = new GLTFLoader()
     loader.load(
-      '/models/toy_paper_globe.glb.glb',
+      '/models/globe%20paper.glb',
       (gltf) => {
         this.model.remove(fallback)
 
