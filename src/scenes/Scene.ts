@@ -21,16 +21,13 @@ export default class Scene {
   private dragX = 0
   private dragY = 0
 
-  // Zoom (vertical scroll, fallback when the model has no animations)
+  // Zoom (vertical scroll)
   private targetCamZ = 3
   private camZ = 3
 
-  // Animation scrubbing (vertical scroll, when the GLB has animation clips)
+  // Autoplay animation
   private mixer: THREE.AnimationMixer | null = null
-  private actions: THREE.AnimationAction[] = []
-  private animDuration = 0
-  private targetAnimT = 0  // 0 → 1 along the timeline
-  private animT = 0
+  private clock = new THREE.Clock()
 
   // Touch tracking
   private touchX = 0
@@ -84,21 +81,9 @@ export default class Scene {
 
         this.model.add(gltf.scene)
 
-        // If the GLB ships with animation clips, set up a mixer and
-        // prepare each action in paused state so we can scrub them by scroll.
         if (gltf.animations.length > 0) {
           this.mixer = new THREE.AnimationMixer(gltf.scene)
-          this.animDuration = 0
-          gltf.animations.forEach((clip) => {
-            const action = this.mixer!.clipAction(clip)
-            action.play()
-            action.paused = true
-            this.actions.push(action)
-            if (clip.duration > this.animDuration) this.animDuration = clip.duration
-          })
-          console.log(`GLB loaded with ${gltf.animations.length} animation(s), duration ${this.animDuration.toFixed(2)}s`)
-        } else {
-          console.log('GLB loaded (no embedded animations)')
+          gltf.animations.forEach((clip) => this.mixer!.clipAction(clip).play())
         }
       },
       undefined,
@@ -128,12 +113,7 @@ export default class Scene {
   }
 
   private applyVerticalDelta(dy: number) {
-    if (this.mixer) {
-      // Scrub the animation timeline — full scroll through covers the full clip
-      this.targetAnimT = Math.max(0, Math.min(1, this.targetAnimT + dy * 0.001))
-    } else {
-      this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ + dy * 0.004))
-    }
+    this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ + dy * 0.004))
   }
 
   private onMouseDown = (e: MouseEvent) => {
@@ -190,17 +170,9 @@ export default class Scene {
     this.model.rotation.y = this.rotY
     this.model.rotation.x = this.rotX
 
-    if (this.mixer) {
-      // Scrub each action's time independently — clips may have different durations
-      this.animT += (this.targetAnimT - this.animT) * 0.08
-      this.actions.forEach((action) => {
-        action.time = this.animT * action.getClip().duration
-      })
-      this.mixer.update(0)   // apply the new times without advancing
-    } else {
-      this.camZ += (this.targetCamZ - this.camZ) * 0.05
-      this.camera.position.z = this.camZ
-    }
+    this.mixer?.update(this.clock.getDelta())
+    this.camZ += (this.targetCamZ - this.camZ) * 0.05
+    this.camera.position.z = this.camZ
 
     this.renderer.render(this.scene, this.camera)
   }
