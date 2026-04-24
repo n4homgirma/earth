@@ -10,9 +10,16 @@ export default class Scene {
   private rafId = 0
   private scrollEnabled = false
 
-  // Rotation (horizontal scroll)
+  // Rotation (drag / horizontal scroll)
   private targetRotY = 0
   private rotY = 0
+  private targetRotX = 0
+  private rotX = 0
+
+  // Drag state
+  private isDragging = false
+  private dragX = 0
+  private dragY = 0
 
   // Zoom (vertical scroll, fallback when the model has no animations)
   private targetCamZ = 3
@@ -107,6 +114,9 @@ export default class Scene {
 
     window.addEventListener('resize', this.onResize)
     window.addEventListener('wheel', this.onWheel, { passive: false })
+    window.addEventListener('mousedown', this.onMouseDown)
+    window.addEventListener('mousemove', this.onMouseMove)
+    window.addEventListener('mouseup', this.onMouseUp)
     window.addEventListener('touchstart', this.onTouchStart, { passive: true })
     window.addEventListener('touchmove', this.onTouchMove, { passive: false })
 
@@ -124,6 +134,27 @@ export default class Scene {
     } else {
       this.targetCamZ = Math.max(1.5, Math.min(8, this.targetCamZ + dy * 0.004))
     }
+  }
+
+  private onMouseDown = (e: MouseEvent) => {
+    if (!this.scrollEnabled) return
+    this.isDragging = true
+    this.dragX = e.clientX
+    this.dragY = e.clientY
+  }
+
+  private onMouseMove = (e: MouseEvent) => {
+    if (!this.isDragging || !this.scrollEnabled) return
+    const dx = e.clientX - this.dragX
+    const dy = e.clientY - this.dragY
+    this.dragX = e.clientX
+    this.dragY = e.clientY
+    this.targetRotY += dx * 0.008
+    this.targetRotX += dy * 0.008
+  }
+
+  private onMouseUp = () => {
+    this.isDragging = false
   }
 
   private onWheel = (e: WheelEvent) => {
@@ -148,15 +179,16 @@ export default class Scene {
     this.touchX = e.touches[0].clientX
     this.touchY = e.touches[0].clientY
     this.targetRotY -= dx * 0.008
-    // Touch gesture down = scroll forward (positive dy)
-    this.applyVerticalDelta(-dy * 2)
+    this.targetRotX -= dy * 0.008
   }
 
   private animate = () => {
     this.rafId = requestAnimationFrame(this.animate)
 
     this.rotY += (this.targetRotY - this.rotY) * 0.05
+    this.rotX += (this.targetRotX - this.rotX) * 0.05
     this.model.rotation.y = this.rotY
+    this.model.rotation.x = this.rotX
 
     if (this.mixer) {
       // Scrub each action's time independently — clips may have different durations
@@ -183,6 +215,9 @@ export default class Scene {
     cancelAnimationFrame(this.rafId)
     window.removeEventListener('resize', this.onResize)
     window.removeEventListener('wheel', this.onWheel)
+    window.removeEventListener('mousedown', this.onMouseDown)
+    window.removeEventListener('mousemove', this.onMouseMove)
+    window.removeEventListener('mouseup', this.onMouseUp)
     window.removeEventListener('touchstart', this.onTouchStart)
     window.removeEventListener('touchmove', this.onTouchMove)
     this.renderer.dispose()
