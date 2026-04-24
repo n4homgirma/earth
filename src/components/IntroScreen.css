@@ -52,6 +52,23 @@
   transform: rotateX(25deg) scale(1);
   transform-origin: 50% 0%;
 }
+.final-crawl {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  overflow-wrap: break-word;
+  word-break: break-word;
+
+  color: #ffe566;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1rem, 2.2vw, 1.75rem);
+  font-weight: bold;
+  text-align: center;
+  line-height: 2.1;
+  letter-spacing: 0.05em;
+  word-spacing: 0.12em;
+
+}
 
 .intro-crawl p {
   margin-bottom: 1.6em;

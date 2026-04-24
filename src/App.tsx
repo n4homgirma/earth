@@ -4,6 +4,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react'
 import Scene from './scenes/Scene'
 import IntroScreen from './components/IntroScreen'
 import LightBurst from './components/LightBurst'
+import SphereScreen from './components/SphereScreen'
 import './index.css'
 
 type Phase = 'intro' | 'burst' | 'sphere'
@@ -43,6 +44,7 @@ function App() {
       {phase === 'burst' && (
         <LightBurst origin={burstOrigin} />
       )}
+      {phase === 'sphere' && <SphereScreen scene={sceneRef.current} />}
       <Analytics />
       <SpeedInsights />
     </>

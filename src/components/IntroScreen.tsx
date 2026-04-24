@@ -101,13 +101,14 @@ export default function IntroScreen({ onLightClick }: Props) {
           <p className="intro-reference">Genesis 1:1–2</p>
 
           <div className="intro-separator" />
-
-          <p>
+<div className='final-crawl'>
+<p>
             And God said, &ldquo;Let there be{' '}
             <button className="light-word" onClick={(e) => onLightClick({ x: e.clientX, y: e.clientY })}>light</button>
-            ,&rdquo; and there was{' '}
-            <button className="light-word" onClick={(e) => onLightClick({ x: e.clientX, y: e.clientY })}>light</button>.
+            &rdquo;
           </p>
+</div>
+          
         </div>
       </div>
 

@@ -29,9 +29,19 @@ export default class Scene {
   private mixer: THREE.AnimationMixer | null = null
   private clock = new THREE.Clock()
 
+  // 4 edge midpoints in model-local space: [N, E, S, W]
+  private edgePoints: THREE.Vector3[] = []
+
   // Touch tracking
   private touchX = 0
   private touchY = 0
+
+  // Thumbnail canvas
+  private thumbnailCtx: CanvasRenderingContext2D | null = null
+
+  // Cached viewport size — updated in onResize, avoids DOM reads every frame
+  private vpW = window.innerWidth
+  private vpH = window.innerHeight
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
@@ -80,6 +90,19 @@ export default class Scene {
         )
 
         this.model.add(gltf.scene)
+
+        // Compute 4 edge midpoints in model-local space (rotation is 0 at load time,
+        // so world space == local space here). Stored as local coords so
+        // applyMatrix4(matrixWorld) projects them correctly after rotation.
+        this.model.updateMatrixWorld(true)
+        const mb = new THREE.Box3().setFromObject(this.model)
+        const mc = mb.getCenter(new THREE.Vector3())
+        this.edgePoints = [
+          new THREE.Vector3(mc.x, mc.y, mb.min.z), // 0: N
+          new THREE.Vector3(mb.max.x, mc.y, mc.z), // 1: E
+          new THREE.Vector3(mc.x, mc.y, mb.max.z), // 2: S
+          new THREE.Vector3(mb.min.x, mc.y, mc.z), // 3: W
+        ]
 
         if (gltf.animations.length > 0) {
           this.mixer = new THREE.AnimationMixer(gltf.scene)
@@ -175,12 +198,40 @@ export default class Scene {
     this.camera.position.z = this.camZ
 
     this.renderer.render(this.scene, this.camera)
+
+    if (this.thumbnailCtx) {
+      const { canvas } = this.thumbnailCtx
+      this.thumbnailCtx.clearRect(0, 0, canvas.width, canvas.height)
+      this.thumbnailCtx.drawImage(this.renderer.domElement, 0, 0, canvas.width, canvas.height)
+    }
   }
 
   private onResize = () => {
-    this.camera.aspect = window.innerWidth / window.innerHeight
+    this.vpW = window.innerWidth
+    this.vpH = window.innerHeight
+    this.camera.aspect = this.vpW / this.vpH
     this.camera.updateProjectionMatrix()
-    this.renderer.setSize(window.innerWidth, window.innerHeight)
+    this.renderer.setSize(this.vpW, this.vpH)
+  }
+
+  setThumbnailCanvas(canvas: HTMLCanvasElement | null) {
+    this.thumbnailCtx = canvas ? canvas.getContext('2d') : null
+  }
+
+  getRotation(): { rotY: number; rotX: number } {
+    return { rotY: this.rotY, rotX: this.rotX }
+  }
+
+  getEdgeScreenPositions(): { x: number; y: number }[] {
+    if (this.edgePoints.length === 0) return []
+    return this.edgePoints.map(p => {
+      const world = p.clone().applyMatrix4(this.model.matrixWorld)
+      const ndc = world.project(this.camera)
+      return {
+        x: (ndc.x + 1) / 2 * this.vpW,
+        y: (-ndc.y + 1) / 2 * this.vpH,
+      }
+    })
   }
 
   dispose() {
