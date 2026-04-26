@@ -1,19 +1,47 @@
+/**
+ * SphereScreen.tsx — HUD overlay displayed once the sphere phase is active.
+ *
+ * Layout (all position: fixed, stacked above the Three.js canvas at z-index 20):
+ *   Top-left    → Three thumbnail frames: "CURRENT VIEW" (live canvas blit),
+ *                 "GOD'S VIEW", "OUR VIEW" (placeholders).
+ *   Top-right   → Clock stack: years counter, Ethiopian calendar date, UTC time.
+ *   Center      → SVG connector lines from model edge midpoints to callout panels.
+ *   Callouts    → Four annotated text panels with glowing circle triggers.
+ *   Modal pages → Full-screen expanded view per callout (zoom-in animation).
+ *   Bottom-left → Action buttons: [ CONTRIBUTE ] [ MORE ].
+ *   Bottom-right→ Attribution text.
+ *
+ * Performance strategy:
+ *   SVG line endpoints and the callout parallax transform are updated every
+ *   frame via a dedicated RAF loop that writes DOM attributes directly —
+ *   no React state updates, no re-renders per frame.
+ *
+ * Ethiopian calendar:
+ *   Epoch is ET 2018 Meskerem 1 = Gregorian September 11 2025.
+ *   Leap year rule: ETYear % 4 === 3 → 366 days (Pagumē has 6 days).
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type Scene from '../scenes/Scene'
 import './SphereScreen.css'
 
-// Each callout is assigned to one edge index: 0=N 1=E 2=S 3=W
-// getConnector returns the pixel point on the text panel that the line terminates at
+/**
+ * Callout descriptors — one per annotation pinned to the flat-earth model.
+ *
+ * edgeIndex  → which model edge the SVG line originates from (0=N,1=E,2=S,3=W).
+ * textStyle  → absolute position of the text panel (CSS inline style).
+ * textRight  → true = right-aligned text, used for the eastern callout.
+ * circleStyle→ position of the glowing trigger button relative to the text panel.
+ */
 const CALLOUTS = [
   {
     id: '01',
     edgeIndex: 0,
     title: 'The Firmament',
     description: 'And God said, "Let there be a vault between the waters to separate water from water." So God made the vault and separated the water under the vault from the water above it. And it was so.',
-    textStyle: { left: '60.5%', top: '22%', maxWidth: '22%' } as React.CSSProperties,
+    textStyle: { left: '56%', top: '22%', maxWidth: '22%' } as React.CSSProperties,
     textRight: false,
-    // bottom-left corner: -10px = half-circle (9px) + 1px border
     circleStyle: { bottom: '-10px', left: '-10px' } as React.CSSProperties,
   },
   {
@@ -21,9 +49,8 @@ const CALLOUTS = [
     edgeIndex: 1,
     title: 'The Waters Above',
     description: 'The waters above the firmament are held in place by the dome of heaven — a crystalline expanse stretching across the face of the deep, dividing the celestial from the terrestrial.',
-    textStyle: { right: '0.5%', top: '47%', maxWidth: '22%' } as React.CSSProperties,
+    textStyle: { right: '4%', top: '47%', maxWidth: '22%' } as React.CSSProperties,
     textRight: true,
-    // left-centre: transform centres vertically on the left border edge
     circleStyle: { top: '50%', left: '-10px', transform: 'translateY(-50%)' } as React.CSSProperties,
   },
   {
@@ -31,9 +58,8 @@ const CALLOUTS = [
     edgeIndex: 3,
     title: 'The Foundation',
     description: "He set the earth on its foundations; it can never be moved. The world is established, firm and secure — pillars of the earth are the LORD's, and he has set the world upon them.",
-    textStyle: { left: '0.5%', top: '36%', maxWidth: '19%' } as React.CSSProperties,
+    textStyle: { left: '4%', top: '36%', maxWidth: '19%' } as React.CSSProperties,
     textRight: false,
-    // bottom-right corner
     circleStyle: { bottom: '-10px', right: '-10px' } as React.CSSProperties,
   },
   {
@@ -41,15 +67,15 @@ const CALLOUTS = [
     edgeIndex: 2,
     title: 'The Deep',
     description: 'In the beginning the earth was formless and empty, darkness was over the surface of the deep, and the Spirit of God was hovering over the waters — the great abyss beneath all things.',
-    textStyle: { left: '7%', top: '80%', maxWidth: '22%' } as React.CSSProperties,
+    textStyle: { left: '12%', top: '78%', maxWidth: '22%' } as React.CSSProperties,
     textRight: false,
-    // top-right corner
     circleStyle: { top: '-10px', right: '-10px' } as React.CSSProperties,
   },
 ]
 
+// Ethiopian calendar conversion.
 // Epoch: ET 2018 Meskerem 1 = Gregorian September 11, 2025.
-// ET leap year rule: ETYear % 4 === 3 → 366 days (Pagumē has 6 days), else 365.
+// Leap year rule: ETYear % 4 === 3 → 366 days (Pagumē has 6 days), else 365.
 const EPOCH_GR = new Date(2025, 8, 11) // Sep 11 2025
 const EPOCH_ET = 2018
 
@@ -118,8 +144,8 @@ export default function SphereScreen({ scene }: Props) {
   useEffect(() => {
     if (openPage === null || !pageCanvasRef.current) return
     const canvas = pageCanvasRef.current
-    const w = canvas.clientWidth || 280
-    const h = canvas.clientHeight || 400
+    const w = canvas.clientWidth || 420
+    const h = canvas.clientHeight || 580
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -155,7 +181,9 @@ export default function SphereScreen({ scene }: Props) {
     }
   }, [openPage])
 
-  // RAF loop — updates SVG attributes and callout parallax directly, no React re-render per frame
+  // Per-frame RAF loop — updates SVG line endpoints and callout parallax by
+  // writing DOM attributes directly. No React state, no re-renders per frame.
+  // Parallax offset is spring-damped toward the rotation delta (lerp 0.08).
   useEffect(() => {
     if (!scene) return
     let rafId: number
@@ -288,11 +316,20 @@ export default function SphereScreen({ scene }: Props) {
               <span className="callout-page-id">{CALLOUTS[openPage].id}</span>
               <h2 className="callout-page-title">{CALLOUTS[openPage].title}</h2>
               <p className="callout-page-desc">{CALLOUTS[openPage].description}</p>
+              <button className="callout-page-discover">DISCOVER MORE</button>
             </div>
             <button className="callout-page-close" onClick={() => setOpenPage(null)}>✕</button>
           </div>
         </div>
       )}
+
+      {/* Bottom-left actions */}
+      <div className="screen-actions">
+        <button className="screen-action-btn">[ CONTRIBUTE ]</button>
+        <button className="screen-action-btn">[ LANGUAGES ]</button>
+        <button className="screen-action-btn">[ WAVES ]</button>
+
+      </div>
 
       {/* Bottom-right attribution */}
       <div className="attribution">

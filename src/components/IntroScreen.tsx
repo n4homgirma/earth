@@ -1,5 +1,31 @@
+/**
+ * IntroScreen.tsx — Star Wars-style perspective text crawl with a matrix
+ * scramble title. Occupies the full viewport at z-index 100.
+ *
+ * Title animation:
+ *   A rAF loop writes directly to the <span> DOM node each frame (no state
+ *   updates). Each character cycles through SCRAMBLE_CHARS until its individual
+ *   settle time (index * 60 ms + 800 ms) elapses, then snaps to the real glyph.
+ *   The title fades out when the user first scrolls (hintOut = true).
+ *
+ * Crawl mechanics:
+ *   JS drives `top` and `transform: rotateX(25deg) scale(N)` on the crawl div
+ *   every rAF tick. Scale shrinks linearly with scroll progress (1 → 0.08),
+ *   which creates the receding-into-space depth illusion via CSS perspective.
+ *   Scroll input is clamped to [0, maxScroll] and smoothed with lerp (0.07).
+ *
+ * Interaction:
+ *   Mouse wheel, keyboard arrows/space/page keys, and touch swipe all advance
+ *   the crawl. First input dismisses the scroll-hint UI and fades the title.
+ *   Clicking the glowing "light" word calls onLightClick with the click origin,
+ *   which App uses to position the LightBurst transition.
+ */
+
 import { useEffect, useRef, useState } from 'react'
 import './IntroScreen.css'
+
+const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%^&*!?<>[]{}|'
+const TITLE_TEXT     = "ONCE YOU SEE, YOU CAN'T UNSEE"
 
 interface Props {
   onLightClick: (origin: { x: number; y: number }) => void
@@ -7,11 +33,34 @@ interface Props {
 
 export default function IntroScreen({ onLightClick }: Props) {
   const crawlRef = useRef<HTMLDivElement>(null)
+  const titleRef = useRef<HTMLSpanElement>(null)
   const targetY = useRef(0)
   const posY = useRef(0)
   const animRef = useRef(0)
   const hintDone = useRef(false)
   const [hintOut, setHintOut] = useState(false)
+
+  useEffect(() => {
+    const el = titleRef.current
+    if (!el) return
+    const start = performance.now()
+    let frame: number
+    const tick = (now: number) => {
+      const elapsed = now - start
+      let done = true
+      const chars = TITLE_TEXT.split('').map((ch, i) => {
+        const settleAt = i * 60 + 800
+        if (elapsed >= settleAt) return ch
+        done = false
+        if (ch === ' ') return ' '
+        return SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)]
+      })
+      el.textContent = chars.join('')
+      if (!done) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   useEffect(() => {
     const el = crawlRef.current
@@ -88,6 +137,10 @@ export default function IntroScreen({ onLightClick }: Props) {
     <div className="intro">
       <div className="intro-fade-top" />
 
+      <div className={`intro-title${hintOut ? ' intro-title--out' : ''}`}>
+        <span ref={titleRef} />
+      </div>
+
       <div className="intro-scene">
         <div className="intro-crawl" ref={crawlRef}>
           <p>
@@ -113,7 +166,7 @@ export default function IntroScreen({ onLightClick }: Props) {
       </div>
 
       <div className={`scroll-hint${hintOut ? ' scroll-hint--out' : ''}`}>
-        <span className="scroll-hint-label">scroll</span>
+        <span className="scroll-hint-label">scroll to begin</span>
         <span className="scroll-hint-chevron" />
       </div>
     </div>

@@ -1,6 +1,7 @@
 .sphere-screen {
   position: fixed;
   inset: 0;
+  z-index: 20;
   pointer-events: none;
   font-family: 'Modern Era Mono', 'Courier New', monospace;
   color: #fff;
@@ -192,8 +193,8 @@
 
 .callout-page-inner {
   position: relative;
-  max-width: 820px;
-  width: 92%;
+  max-width: 1160px;
+  width: 94%;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(12, 12, 12, 0.8);
   display: flex;
@@ -202,19 +203,19 @@
 }
 
 .callout-page-canvas {
-  width: 280px;
-  min-width: 280px;
-  height: 400px;
+  width: 420px;
+  min-width: 420px;
+  height: 580px;
   display: block;
   background: transparent;
 }
 
 .callout-page-content {
   flex: 1;
-  padding: 48px 44px 48px 36px;
+  padding: 64px 60px 64px 52px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 24px;
   justify-content: center;
 }
 
@@ -226,7 +227,7 @@
 
 .callout-page-title {
   font-family: inherit;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 400;
   letter-spacing: 0.1em;
   color: #fff;
@@ -235,12 +236,33 @@
 }
 
 .callout-page-desc {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
-  line-height: 2;
+  line-height: 2.1;
   color: rgba(255, 255, 255, 0.65);
   margin: 0;
   text-transform: none;
+}
+
+.callout-page-discover {
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 10px 22px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: all;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.callout-page-discover:hover {
+  border-color: rgba(255, 255, 255, 0.85);
+  color: #fff;
 }
 
 .callout-page-close {
@@ -266,6 +288,36 @@
 @keyframes pageZoomIn {
   from { opacity: 0; transform: scale(0.06); }
   to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Bottom-left actions ───────────────────────────────────── */
+.screen-actions {
+  position: absolute;
+  bottom: 2%;
+  left: 4%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  pointer-events: all;
+}
+
+.screen-action-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.screen-action-btn:hover {
+  border-color: rgba(255, 255, 255, 0.75);
+  color: #fff;
 }
 
 /* ── Bottom-right attribution ──────────────────────────────── */

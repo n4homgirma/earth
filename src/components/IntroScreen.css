@@ -6,6 +6,28 @@
   z-index: 100;
 }
 
+/* ── Matrix scramble title ── */
+.intro-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: 'Modern Era', 'Modern Era Mono', sans-serif;
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  letter-spacing: 0.18em;
+  color: #fff;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.intro-title--out {
+  opacity: 0;
+}
+
 /* Dissolves text into the void as it recedes */
 .intro-fade-top {
   position: absolute;
