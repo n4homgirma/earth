@@ -32,6 +32,13 @@ function App() {
   const [phase, setPhase] = useState<Phase>('intro')
   const [burstOrigin, setBurstOrigin] = useState({ x: 0, y: 0 })
 
+  // Tween functions exposed by WaveBackground once its Three.js effect runs.
+  // Passed as a ref so SphereScreen can call them without a re-render.
+  const waveControlsRef = useRef<{
+    tweenSpeed: (v: number) => void
+    tweenAmp:   (v: number) => void
+  } | null>(null)
+
   // Build the Three.js scene once, bound to the persistent canvas element.
   useEffect(() => {
     if (!canvasRef.current) return
@@ -56,7 +63,12 @@ function App() {
   return (
     <>
       {/* Wave background sits below the 3D canvas (z-index 0) */}
-      {phase === 'sphere' && <WaveBackground scene={sceneRef.current} />}
+      {phase === 'sphere' && (
+        <WaveBackground
+          scene={sceneRef.current}
+          onControlsReady={(ts, ta) => { waveControlsRef.current = { tweenSpeed: ts, tweenAmp: ta } }}
+        />
+      )}
 
       {/* Shared Three.js canvas — used by Scene for the entire session */}
       <canvas ref={canvasRef} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
@@ -69,7 +81,7 @@ function App() {
       )}
 
       {/* HUD overlay sits above the 3D canvas (z-index 20) */}
-      {phase === 'sphere' && <SphereScreen scene={sceneRef.current} />}
+      {phase === 'sphere' && <SphereScreen scene={sceneRef.current} waveControls={waveControlsRef} />}
 
       <Analytics />
       <SpeedInsights />

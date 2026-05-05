@@ -320,6 +320,25 @@
   color: #fff;
 }
 
+.wave-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wave-ctrl-btn {
+  padding: 8px 8px;
+}
+
+.wave-ctrl-label {
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0 2px;
+}
+
 /* ── Bottom-right attribution ──────────────────────────────── */
 .attribution {
   position: absolute;

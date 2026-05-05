@@ -1,3 +1,4 @@
 {
-  "typescript.tsconfig.autoDetect": "off"
+  "typescript.tsconfig.autoDetect": "off",
+  "editor.formatOnSave": true,
 }

@@ -24,11 +24,11 @@
  *              ringRadius = uRippleT * 4.5 world units.
  *
  * Controls:
- *   WAVE SPEED  slider → tweens uSpeed (range 1–10, mapped to 0.22–2.2).
- *   WAVE HEIGHT slider → tweens uAmp   (range 1–10, mapped to 0.055–0.55).
+ *   Exposed via onControlsReady → tweenSpeed / tweenAmp callbacks consumed
+ *   by SphereScreen's [ WAVES ] button (range 1–10, mapped to 0.22–2.2 / 0.055–0.55).
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import gsap from 'gsap'
 import type Scene from '../scenes/Scene'
@@ -106,13 +106,15 @@ const VERTEX = `
 
     p.z = height(p.xy, t) * uAmp;
 
-    // Click ripple: single Gaussian ring expanding from uRipple.
-    // ringR grows with age (uRippleT); atRing peaks where rd == ringR.
+    // Click ripple: oscillating rings with spatial + temporal envelope.
+    // envelope = exp(-rd * 0.12) keeps impact radius tight.
+    // sin(rd * 0.9 - age * 2.2) produces multiple concentric rings.
+    // Amplitude 0.07 (half the reference HTML's 0.13) for subtlety.
     vec2 rPos = uRipple * vec2(65.0, 50.0);
     float rd = length(p.xy - rPos);
-    float ringR = uRippleT * 4.5;
-    float atRing = exp(-pow(rd - ringR, 2.0) * 0.06) * exp(-uRippleT * 0.22);
-    p.z += uRippleS * atRing * 0.07;
+    float age = uRippleT;
+    float envelope = exp(-rd * 0.12) * exp(-age * 0.38);
+    p.z += uRippleS * envelope * sin(rd * 0.9 - age * 2.2) * 0.07;
 
     // Surface normals via finite differences — eps=0.25 world units gives
     // smooth normals without losing high-frequency detail.
@@ -154,18 +156,19 @@ const FRAGMENT = `
   }
 `
 
-type Props = { scene: Scene | null }
+type Props = {
+  scene: Scene | null
+  /** Called once the GSAP tween functions are ready; used by SphereScreen's wave button. */
+  onControlsReady?: (tweenSpeed: (v: number) => void, tweenAmp: (v: number) => void) => void
+}
 
-export default function WaveBackground({ scene }: Props) {
+export default function WaveBackground({ scene, onControlsReady }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // Keep a ref to the latest scene so the click handler (closed over at mount)
   // always calls hitTestModel on the current instance, not a stale one.
   const sceneRef  = useRef(scene)
   useEffect(() => { sceneRef.current = scene }, [scene])
-
-  const [speed, setSpeed] = useState(3)
-  const [amp,   setAmp]   = useState(3)
 
   // Refs to GSAP tween functions wired up inside the effect.
   // Pattern: expose imperative controls from a closed-over effect via refs.
@@ -198,17 +201,18 @@ export default function WaveBackground({ scene }: Props) {
 
     // Uniform objects — mutated directly each frame; Three.js reads .value
     const uTime    = { value: 0 }
-    const uAmp     = { value: amp   * 0.055 }
-    const uSpeed   = { value: speed * 0.22  }
+    const uAmp     = { value: 3 * 0.055 }  // default amp = 3
+    const uSpeed   = { value: 3 * 0.22  }  // default speed = 3
     const uTrail   = { value: new THREE.Vector2(9999, 9999) }  // off-screen default
     const uTrailS  = { value: 0 }
     const uRipple  = { value: new THREE.Vector2(9999, 9999) }
     const uRippleS = { value: 0 }
     const uRippleT = { value: 0 }
 
-    // Expose slider-driven tween functions back to the React render closure
     tweenSpeed.current = (v) => gsap.to(uSpeed, { value: v * 0.22,  duration: 0.4, ease: 'power2.out' })
     tweenAmp.current   = (v) => gsap.to(uAmp,   { value: v * 0.055, duration: 0.4, ease: 'power2.out' })
+    // Expose tween functions to the parent (SphereScreen wave button)
+    onControlsReady?.(tweenSpeed.current, tweenAmp.current)
 
     // 340×340 segments — enough resolution for smooth Perlin displacement
     const geo = new THREE.PlaneGeometry(130, 100, 340, 340)
@@ -259,20 +263,20 @@ export default function WaveBackground({ scene }: Props) {
       gsap.killTweensOf(rippleAge)
       rippleAge.v    = 0
       uRippleT.value = 0
-      // Two-phase strength tween: snap to 1, then ease out over 4 s
+      // Strength: snap to 1, then long power4.out fade (matches HTML reference)
       gsap.fromTo(rippleProxy, { v: 0 }, {
         v: 1, duration: 0.05, ease: 'none',
         onUpdate:  () => { uRippleS.value = rippleProxy.v },
         onComplete: () => {
           gsap.to(rippleProxy, {
-            v: 0, duration: 4.0, ease: 'power2.out',
+            v: 0, duration: 6.0, ease: 'power4.out',
             onUpdate: () => { uRippleS.value = rippleProxy.v },
           })
         },
       })
-      // Age drives ring radius; power2.out = fast initial expansion, then easing
+      // Age drives the sin phase; power2.inOut = natural wave propagation feel
       gsap.to(rippleAge, {
-        v: 10.0, duration: 4.0, ease: 'power2.out',
+        v: 7.0, duration: 6.0, ease: 'power2.inOut',
         onUpdate: () => { uRippleT.value = rippleAge.v },
       })
     }
@@ -316,61 +320,10 @@ export default function WaveBackground({ scene }: Props) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ctrlStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: '2%',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: 25,
-    display: 'flex',
-    gap: '32px',
-    alignItems: 'center',
-    fontFamily: "'Modern Era Mono', 'Courier New', monospace",
-    fontSize: '9px',
-    letterSpacing: '0.14em',
-    textTransform: 'uppercase',
-    color: 'rgba(255,255,255,0.45)',
-    pointerEvents: 'all',
-  }
-
-  const labelStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  }
-
   return (
-    <>
-      <canvas
-        ref={canvasRef}
-        style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0, opacity: 0.5 }}
-      />
-      <div style={ctrlStyle}>
-        <label style={labelStyle}>
-          WAVE SPEED
-          <input
-            type="range" min={1} max={10} step={1} value={speed}
-            style={{ width: '72px', accentColor: 'rgba(255,255,255,0.5)' }}
-            onChange={e => {
-              const v = Number(e.target.value)
-              setSpeed(v)
-              tweenSpeed.current?.(v)
-            }}
-          />
-        </label>
-        <label style={labelStyle}>
-          WAVE HEIGHT
-          <input
-            type="range" min={1} max={10} step={1} value={amp}
-            style={{ width: '72px', accentColor: 'rgba(255,255,255,0.5)' }}
-            onChange={e => {
-              const v = Number(e.target.value)
-              setAmp(v)
-              tweenAmp.current?.(v)
-            }}
-          />
-        </label>
-      </div>
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0, opacity: 0.5 }}
+    />
   )
 }

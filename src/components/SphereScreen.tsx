@@ -94,12 +94,28 @@ function toEthiopian(date: Date) {
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
-type Props = { scene: Scene | null }
+type WaveControls = { tweenSpeed: (v: number) => void; tweenAmp: (v: number) => void }
+type Props = { scene: Scene | null; waveControls: React.RefObject<WaveControls | null> }
 
-export default function SphereScreen({ scene }: Props) {
+export default function SphereScreen({ scene, waveControls }: Props) {
   const [clock, setClock] = useState({ utc: '', et: '' })
   const [openPage, setOpenPage] = useState<number | null>(null)
   const [pageOrigin, setPageOrigin] = useState('50% 50%')
+
+  const [waveExpanded, setWaveExpanded] = useState(false)
+  const [waveSpeed, setWaveSpeed] = useState(3)
+  const [waveAmp,   setWaveAmp]   = useState(3)
+
+  const adjustSpeed = (delta: number) => {
+    const v = Math.max(1, Math.min(10, waveSpeed + delta))
+    setWaveSpeed(v)
+    waveControls.current?.tweenSpeed(v)
+  }
+  const adjustAmp = (delta: number) => {
+    const v = Math.max(1, Math.min(10, waveAmp + delta))
+    setWaveAmp(v)
+    waveControls.current?.tweenAmp(v)
+  }
 
   const handleCircleClick = (i: number, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
@@ -327,8 +343,24 @@ export default function SphereScreen({ scene }: Props) {
       <div className="screen-actions">
         <button className="screen-action-btn">[ CONTRIBUTE ]</button>
         <button className="screen-action-btn">[ LANGUAGES ]</button>
-        <button className="screen-action-btn">[ WAVES ]</button>
-
+        <div
+          className="wave-ctrl"
+          onMouseEnter={() => setWaveExpanded(true)}
+          onMouseLeave={() => setWaveExpanded(false)}
+        >
+          {waveExpanded ? (
+            <>
+              <button className="screen-action-btn wave-ctrl-btn" onClick={() => adjustSpeed(-1)}>[-]</button>
+              <span className="wave-ctrl-label">SPEED</span>
+              <button className="screen-action-btn wave-ctrl-btn" onClick={() => adjustSpeed(1)}>[+]</button>
+              <button className="screen-action-btn wave-ctrl-btn" onClick={() => adjustAmp(-1)}>[-]</button>
+              <span className="wave-ctrl-label">HEIGHT</span>
+              <button className="screen-action-btn wave-ctrl-btn" onClick={() => adjustAmp(1)}>[+]</button>
+            </>
+          ) : (
+            <button className="screen-action-btn">[ WAVES ]</button>
+          )}
+        </div>
       </div>
 
       {/* Bottom-right attribution */}
